@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-playground/webhooks/v6/webhook"
+	"github.com/myback/webhooks/v6/webhook"
 	"github.com/stretchr/testify/require"
 )
 

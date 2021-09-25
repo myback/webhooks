@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-playground/webhooks/v6/github"
-	"github.com/go-playground/webhooks/v6/webhook"
+	"github.com/myback/webhooks/v6/github"
+	"github.com/myback/webhooks/v6/webhook"
 )
 
 const (
