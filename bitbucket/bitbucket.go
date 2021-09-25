@@ -4,20 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/go-playground/webhooks/v6/webhook"
 )
 
-// parse errors
 var (
-	ErrEventNotSpecifiedToParse = errors.New("no Event specified to parse")
-	ErrInvalidHTTPMethod        = errors.New("invalid HTTP Method")
-	ErrMissingHookUUIDHeader    = errors.New("missing X-Hook-UUID Header")
-	ErrMissingEventKeyHeader    = errors.New("missing X-Event-Key Header")
-	ErrEventNotFound            = errors.New("event not defined to be parsed")
-	ErrParsingPayload           = errors.New("error parsing payload")
-	ErrUUIDVerificationFailed   = errors.New("UUID verification failed")
+	ErrUUIDVerificationFailed = errors.New("UUID verification failed")
 )
 
 // Webhook instance contains all methods needed to process events
@@ -25,29 +19,26 @@ type Webhook struct {
 	uuid string
 }
 
-// Event defines a Bitbucket hook event type
-type Event string
-
 // Bitbucket hook types
 const (
-	RepoPushEvent                  Event = "repo:push"
-	RepoForkEvent                  Event = "repo:fork"
-	RepoUpdatedEvent               Event = "repo:updated"
-	RepoCommitCommentCreatedEvent  Event = "repo:commit_comment_created"
-	RepoCommitStatusCreatedEvent   Event = "repo:commit_status_created"
-	RepoCommitStatusUpdatedEvent   Event = "repo:commit_status_updated"
-	IssueCreatedEvent              Event = "issue:created"
-	IssueUpdatedEvent              Event = "issue:updated"
-	IssueCommentCreatedEvent       Event = "issue:comment_created"
-	PullRequestCreatedEvent        Event = "pullrequest:created"
-	PullRequestUpdatedEvent        Event = "pullrequest:updated"
-	PullRequestApprovedEvent       Event = "pullrequest:approved"
-	PullRequestUnapprovedEvent     Event = "pullrequest:unapproved"
-	PullRequestMergedEvent         Event = "pullrequest:fulfilled"
-	PullRequestDeclinedEvent       Event = "pullrequest:rejected"
-	PullRequestCommentCreatedEvent Event = "pullrequest:comment_created"
-	PullRequestCommentUpdatedEvent Event = "pullrequest:comment_updated"
-	PullRequestCommentDeletedEvent Event = "pullrequest:comment_deleted"
+	RepoPushEvent                  webhook.Event = "repo:push"
+	RepoForkEvent                  webhook.Event = "repo:fork"
+	RepoUpdatedEvent               webhook.Event = "repo:updated"
+	RepoCommitCommentCreatedEvent  webhook.Event = "repo:commit_comment_created"
+	RepoCommitStatusCreatedEvent   webhook.Event = "repo:commit_status_created"
+	RepoCommitStatusUpdatedEvent   webhook.Event = "repo:commit_status_updated"
+	IssueCreatedEvent              webhook.Event = "issue:created"
+	IssueUpdatedEvent              webhook.Event = "issue:updated"
+	IssueCommentCreatedEvent       webhook.Event = "issue:comment_created"
+	PullRequestCreatedEvent        webhook.Event = "pullrequest:created"
+	PullRequestUpdatedEvent        webhook.Event = "pullrequest:updated"
+	PullRequestApprovedEvent       webhook.Event = "pullrequest:approved"
+	PullRequestUnapprovedEvent     webhook.Event = "pullrequest:unapproved"
+	PullRequestMergedEvent         webhook.Event = "pullrequest:fulfilled"
+	PullRequestDeclinedEvent       webhook.Event = "pullrequest:rejected"
+	PullRequestCommentCreatedEvent webhook.Event = "pullrequest:comment_created"
+	PullRequestCommentUpdatedEvent webhook.Event = "pullrequest:comment_updated"
+	PullRequestCommentDeletedEvent webhook.Event = "pullrequest:comment_deleted"
 )
 
 // Option is a configuration option for the webhook
@@ -59,10 +50,10 @@ var Options = WebhookOptions{}
 // WebhookOptions is a namespace for configuration option methods
 type WebhookOptions struct{}
 
-// UUID registers the BitBucket secret
-func (WebhookOptions) UUID(uuid string) Option {
+// Secret registers the BitBucket secret
+func (WebhookOptions) Secret(secret string) Option {
 	return func(hook *Webhook) error {
-		hook.uuid = uuid
+		hook.uuid = secret
 		return nil
 	}
 }
@@ -72,133 +63,131 @@ func New(options ...Option) (*Webhook, error) {
 	hook := new(Webhook)
 	for _, opt := range options {
 		if err := opt(hook); err != nil {
-			return nil, errors.New("Error applying Option")
+			return nil, fmt.Errorf("applying Option failed: %s", err)
 		}
 	}
 	return hook, nil
 }
 
-// Parse verifies and parses the events specified and returns the payload object or an error
-func (hook Webhook) Parse(r *http.Request, events ...Event) (interface{}, error) {
-	defer func() {
-		_, _ = io.Copy(ioutil.Discard, r.Body)
-		_ = r.Body.Close()
-	}()
-
+func (hook Webhook) Parse(r *http.Request, events ...webhook.Event) (interface{}, error) {
 	if len(events) == 0 {
-		return nil, ErrEventNotSpecifiedToParse
+		return nil, webhook.ErrEventNotSpecifiedToParse
 	}
 	if r.Method != http.MethodPost {
-		return nil, ErrInvalidHTTPMethod
+		return nil, webhook.ErrInvalidHTTPMethod
 	}
 
-	uuid := r.Header.Get("X-Hook-UUID")
-	if hook.uuid != "" && uuid == "" {
-		return nil, ErrMissingHookUUIDHeader
+	if err := hook.VerifyToken(r.Header.Get("X-Hook-UUID"), nil); err != nil {
+		return nil, err
 	}
 
 	event := r.Header.Get("X-Event-Key")
 	if event == "" {
-		return nil, ErrMissingEventKeyHeader
+		return nil, webhook.ErrMissingEventKeyHeader
 	}
 
-	if len(hook.uuid) > 0 && uuid != hook.uuid {
-		return nil, ErrUUIDVerificationFailed
+	bitbucketEvent := webhook.Event(event)
+	if !bitbucketEvent.In(events) {
+		return nil, webhook.ErrEventNotFound
 	}
 
-	bitbucketEvent := Event(event)
-
-	var found bool
-	for _, evt := range events {
-		if evt == bitbucketEvent {
-			found = true
-			break
-		}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
 	}
-	// event not defined to be parsed
-	if !found {
-		return nil, ErrEventNotFound
-	}
+	defer r.Body.Close()
 
-	payload, err := ioutil.ReadAll(r.Body)
-	if err != nil || len(payload) == 0 {
-		return nil, ErrParsingPayload
+	return hook.ParseBytes(body, bitbucketEvent)
+}
+
+func (hook Webhook) VerifyToken(uuid string, _ []byte) error {
+	if uuid == "" {
+		return webhook.ErrTokenEmpty
 	}
 
-	switch bitbucketEvent {
+	if hook.uuid == uuid {
+		return nil
+	}
+
+	return ErrUUIDVerificationFailed
+}
+
+// ParseBytes verifies and parses the events specified and returns the payload object or an error
+func (Webhook) ParseBytes(b []byte, event webhook.Event) (interface{}, error) {
+	switch event {
 	case RepoPushEvent:
 		var pl RepoPushPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case RepoForkEvent:
 		var pl RepoForkPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case RepoUpdatedEvent:
 		var pl RepoUpdatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case RepoCommitCommentCreatedEvent:
 		var pl RepoCommitCommentCreatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case RepoCommitStatusCreatedEvent:
 		var pl RepoCommitStatusCreatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case RepoCommitStatusUpdatedEvent:
 		var pl RepoCommitStatusUpdatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case IssueCreatedEvent:
 		var pl IssueCreatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case IssueUpdatedEvent:
 		var pl IssueUpdatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case IssueCommentCreatedEvent:
 		var pl IssueCommentCreatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case PullRequestCreatedEvent:
 		var pl PullRequestCreatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case PullRequestUpdatedEvent:
 		var pl PullRequestUpdatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case PullRequestApprovedEvent:
 		var pl PullRequestApprovedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case PullRequestUnapprovedEvent:
 		var pl PullRequestUnapprovedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case PullRequestMergedEvent:
 		var pl PullRequestMergedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case PullRequestDeclinedEvent:
 		var pl PullRequestDeclinedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case PullRequestCommentCreatedEvent:
 		var pl PullRequestCommentCreatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case PullRequestCommentUpdatedEvent:
 		var pl PullRequestCommentUpdatedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	case PullRequestCommentDeletedEvent:
 		var pl PullRequestCommentDeletedPayload
-		err = json.Unmarshal([]byte(payload), &pl)
+		err := json.Unmarshal(b, &pl)
 		return pl, err
 	default:
-		return nil, fmt.Errorf("unknown event %s", bitbucketEvent)
+		return nil, fmt.Errorf("unknown event %s", event)
 	}
 }

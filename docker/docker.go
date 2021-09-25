@@ -8,15 +8,12 @@ package docker
 import (
 	"encoding/json"
 	"errors"
-	"io"
-	"io/ioutil"
+	"fmt"
 	"net/http"
 )
 
-// parse errors
 var (
 	ErrInvalidHTTPMethod = errors.New("invalid HTTP Method")
-	ErrParsingPayload    = errors.New("error parsing payload")
 )
 
 // Event defines a Docker hook event type
@@ -68,25 +65,15 @@ func New() (*Webhook, error) {
 
 // Parse verifies and parses the events specified and returns the payload object or an error
 func (hook Webhook) Parse(r *http.Request, events ...Event) (interface{}, error) {
-	defer func() {
-		_, _ = io.Copy(ioutil.Discard, r.Body)
-		_ = r.Body.Close()
-	}()
-
 	if r.Method != http.MethodPost {
 		return nil, ErrInvalidHTTPMethod
 	}
 
-	payload, err := ioutil.ReadAll(r.Body)
-	if err != nil || len(payload) == 0 {
-		return nil, ErrParsingPayload
-	}
-
 	var pl BuildPayload
-	err = json.Unmarshal([]byte(payload), &pl)
-	if err != nil {
-		return nil, ErrParsingPayload
+	if err := json.NewDecoder(r.Body).Decode(&pl); err != nil {
+		return nil, fmt.Errorf("error parsing payload: %s", err)
 	}
-	return pl, err
+	defer r.Body.Close()
 
+	return pl, nil
 }

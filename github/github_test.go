@@ -2,16 +2,15 @@ package github
 
 import (
 	"bytes"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"testing"
 
-	"io"
-
-	"reflect"
-
+	"github.com/go-playground/webhooks/v6/webhook"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,7 +53,7 @@ func TestBadRequests(t *testing.T) {
 	assert := require.New(t)
 	tests := []struct {
 		name    string
-		event   Event
+		event   webhook.Event
 		payload io.Reader
 		headers http.Header
 	}{
@@ -128,7 +127,7 @@ func TestWebhooks(t *testing.T) {
 	assert := require.New(t)
 	tests := []struct {
 		name     string
-		event    Event
+		event    webhook.Event
 		typ      interface{}
 		filename string
 		headers  http.Header

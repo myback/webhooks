@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-
 	"net/http"
 
 	"github.com/go-playground/webhooks/v6/github"
+	"github.com/go-playground/webhooks/v6/webhook"
 )
 
 const (
@@ -18,7 +18,7 @@ func main() {
 	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		payload, err := hook.Parse(r, github.ReleaseEvent, github.PullRequestEvent)
 		if err != nil {
-			if err == github.ErrEventNotFound {
+			if err == webhook.ErrEventNotFound {
 				// ok event wasn;t one of the ones asked to be parsed
 			}
 		}

@@ -2,16 +2,15 @@ package bitbucket
 
 import (
 	"bytes"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"testing"
 
-	"io"
-
-	"reflect"
-
+	"github.com/go-playground/webhooks/v6/webhook"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,7 +35,7 @@ func TestMain(m *testing.M) {
 
 	// setup
 	var err error
-	hook, err = New(Options.UUID("MY_UUID"))
+	hook, err = New(Options.Secret("MY_UUID"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +54,7 @@ func TestBadRequests(t *testing.T) {
 	assert := require.New(t)
 	tests := []struct {
 		name    string
-		event   Event
+		event   webhook.Event
 		payload io.Reader
 		headers http.Header
 	}{
@@ -131,7 +130,7 @@ func TestWebhooks(t *testing.T) {
 	assert := require.New(t)
 	tests := []struct {
 		name     string
-		event    Event
+		event    webhook.Event
 		typ      interface{}
 		filename string
 		headers  http.Header

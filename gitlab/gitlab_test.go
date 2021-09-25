@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/go-playground/webhooks/v6/webhook"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,7 +54,7 @@ func TestBadRequests(t *testing.T) {
 	assert := require.New(t)
 	tests := []struct {
 		name    string
-		event   Event
+		event   webhook.Event
 		payload io.Reader
 		headers http.Header
 	}{
@@ -118,7 +119,7 @@ func TestWebhooks(t *testing.T) {
 	assert := require.New(t)
 	tests := []struct {
 		name     string
-		event    Event
+		event    webhook.Event
 		typ      interface{}
 		filename string
 		headers  http.Header
@@ -269,14 +270,14 @@ func TestJobHooks(t *testing.T) {
 	assert := require.New(t)
 	tests := []struct {
 		name     string
-		events   []Event
+		events   []webhook.Event
 		typ      interface{}
 		filename string
 		headers  http.Header
 	}{
 		{
 			name:     "JobEvent",
-			events:   []Event{JobEvents, BuildEvents},
+			events:   []webhook.Event{JobEvents, BuildEvents},
 			typ:      BuildEventPayload{},
 			filename: "../testdata/gitlab/build-event.json",
 			headers: http.Header{
@@ -321,7 +322,7 @@ func TestSystemHooks(t *testing.T) {
 	assert := require.New(t)
 	tests := []struct {
 		name     string
-		event    Event
+		event    webhook.Event
 		typ      interface{}
 		filename string
 	}{

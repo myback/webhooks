@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/go-playground/webhooks/v6/webhook"
 )
 
 type DiagnosticsPingPayload struct{}
 
 type RepositoryReferenceChangedPayload struct {
 	Date       Date               `json:"date"`
-	EventKey   Event              `json:"eventKey"`
+	EventKey   webhook.Event              `json:"eventKey"`
 	Actor      User               `json:"actor"`
 	Repository Repository         `json:"repository"`
 	Changes    []RepositoryChange `json:"changes"`
@@ -18,7 +20,7 @@ type RepositoryReferenceChangedPayload struct {
 
 type RepositoryModifiedPayload struct {
 	Date     Date       `json:"date"`
-	EventKey Event      `json:"eventKey"`
+	EventKey webhook.Event      `json:"eventKey"`
 	Actor    User       `json:"actor"`
 	Old      Repository `json:"old"`
 	New      Repository `json:"new"`
@@ -26,14 +28,14 @@ type RepositoryModifiedPayload struct {
 
 type RepositoryForkedPayload struct {
 	Date       Date       `json:"date"`
-	EventKey   Event      `json:"eventKey"`
+	EventKey   webhook.Event      `json:"eventKey"`
 	Actor      User       `json:"actor"`
 	Repository Repository `json:"repository"`
 }
 
 type RepositoryCommentAddedPayload struct {
 	Date       Date       `json:"date"`
-	EventKey   Event      `json:"eventKey"`
+	EventKey   webhook.Event      `json:"eventKey"`
 	Actor      User       `json:"actor"`
 	Comment    Comment    `json:"comment"`
 	Repository Repository `json:"repository"`
@@ -42,7 +44,7 @@ type RepositoryCommentAddedPayload struct {
 
 type RepositoryCommentEditedPayload struct {
 	Date            Date       `json:"date"`
-	EventKey        Event      `json:"eventKey"`
+	EventKey        webhook.Event      `json:"eventKey"`
 	Actor           User       `json:"actor"`
 	Comment         Comment    `json:"comment"`
 	PreviousComment string     `json:"previousComment"`
@@ -52,7 +54,7 @@ type RepositoryCommentEditedPayload struct {
 
 type RepositoryCommentDeletedPayload struct {
 	Date       Date       `json:"date"`
-	EventKey   Event      `json:"eventKey"`
+	EventKey   webhook.Event      `json:"eventKey"`
 	Actor      User       `json:"actor"`
 	Comment    Comment    `json:"comment"`
 	Repository Repository `json:"repository"`
@@ -61,14 +63,14 @@ type RepositoryCommentDeletedPayload struct {
 
 type PullRequestOpenedPayload struct {
 	Date        Date        `json:"date"`
-	EventKey    Event       `json:"eventKey"`
+	EventKey    webhook.Event       `json:"eventKey"`
 	Actor       User        `json:"actor"`
 	PullRequest PullRequest `json:"pullRequest"`
 }
 
 type PullRequestFromReferenceUpdatedPayload struct {
 	Date             Date        `json:"date"`
-	EventKey         Event       `json:"eventKey"`
+	EventKey         webhook.Event       `json:"eventKey"`
 	Actor            User        `json:"actor"`
 	PullRequest      PullRequest `json:"pullRequest"`
 	PreviousFromHash string      `json:"previousFromHash"`
@@ -76,7 +78,7 @@ type PullRequestFromReferenceUpdatedPayload struct {
 
 type PullRequestModifiedPayload struct {
 	Date                Date                   `json:"date"`
-	EventKey            Event                  `json:"eventKey"`
+	EventKey            webhook.Event                  `json:"eventKey"`
 	Actor               User                   `json:"actor"`
 	PullRequest         PullRequest            `json:"pullRequest"`
 	PreviousTitle       string                 `json:"previousTitle"`
@@ -86,28 +88,28 @@ type PullRequestModifiedPayload struct {
 
 type PullRequestMergedPayload struct {
 	Date        Date        `json:"date"`
-	EventKey    Event       `json:"eventKey"`
+	EventKey    webhook.Event       `json:"eventKey"`
 	Actor       User        `json:"actor"`
 	PullRequest PullRequest `json:"pullRequest"`
 }
 
 type PullRequestDeclinedPayload struct {
 	Date        Date        `json:"date"`
-	EventKey    Event       `json:"eventKey"`
+	EventKey    webhook.Event       `json:"eventKey"`
 	Actor       User        `json:"actor"`
 	PullRequest PullRequest `json:"pullRequest"`
 }
 
 type PullRequestDeletedPayload struct {
 	Date        Date        `json:"date"`
-	EventKey    Event       `json:"eventKey"`
+	EventKey    webhook.Event       `json:"eventKey"`
 	Actor       User        `json:"actor"`
 	PullRequest PullRequest `json:"pullRequest"`
 }
 
 type PullRequestReviewerUpdatedPayload struct {
 	Date             Date        `json:"date"`
-	EventKey         Event       `json:"eventKey"`
+	EventKey         webhook.Event       `json:"eventKey"`
 	Actor            User        `json:"actor"`
 	PullRequest      PullRequest `json:"pullRequest"`
 	RemovedReviewers []User      `json:"removedReviewers"`
@@ -116,7 +118,7 @@ type PullRequestReviewerUpdatedPayload struct {
 
 type PullRequestReviewerApprovedPayload struct {
 	Date           Date                   `json:"date"`
-	EventKey       Event                  `json:"eventKey"`
+	EventKey       webhook.Event                  `json:"eventKey"`
 	Actor          User                   `json:"actor"`
 	PullRequest    PullRequest            `json:"pullRequest"`
 	Participant    PullRequestParticipant `json:"participant"`
@@ -125,7 +127,7 @@ type PullRequestReviewerApprovedPayload struct {
 
 type PullRequestReviewerUnapprovedPayload struct {
 	Date           Date                   `json:"date"`
-	EventKey       Event                  `json:"eventKey"`
+	EventKey       webhook.Event                  `json:"eventKey"`
 	Actor          User                   `json:"actor"`
 	PullRequest    PullRequest            `json:"pullRequest"`
 	Participant    PullRequestParticipant `json:"participant"`
@@ -134,7 +136,7 @@ type PullRequestReviewerUnapprovedPayload struct {
 
 type PullRequestReviewerNeedsWorkPayload struct {
 	Date           Date                   `json:"date"`
-	EventKey       Event                  `json:"eventKey"`
+	EventKey       webhook.Event                  `json:"eventKey"`
 	Actor          User                   `json:"actor"`
 	PullRequest    PullRequest            `json:"pullRequest"`
 	Participant    PullRequestParticipant `json:"participant"`
@@ -143,7 +145,7 @@ type PullRequestReviewerNeedsWorkPayload struct {
 
 type PullRequestCommentAddedPayload struct {
 	Date            Date        `json:"date"`
-	EventKey        Event       `json:"eventKey"`
+	EventKey        webhook.Event       `json:"eventKey"`
 	Actor           User        `json:"actor"`
 	PullRequest     PullRequest `json:"pullRequest"`
 	Comment         Comment     `json:"comment"`
@@ -152,7 +154,7 @@ type PullRequestCommentAddedPayload struct {
 
 type PullRequestCommentEditedPayload struct {
 	Date            Date        `json:"date"`
-	EventKey        Event       `json:"eventKey"`
+	EventKey        webhook.Event       `json:"eventKey"`
 	Actor           User        `json:"actor"`
 	PullRequest     PullRequest `json:"pullRequest"`
 	Comment         Comment     `json:"comment"`
@@ -162,7 +164,7 @@ type PullRequestCommentEditedPayload struct {
 
 type PullRequestCommentDeletedPayload struct {
 	Date            Date        `json:"date"`
-	EventKey        Event       `json:"eventKey"`
+	EventKey        webhook.Event       `json:"eventKey"`
 	Actor           User        `json:"actor"`
 	PullRequest     PullRequest `json:"pullRequest"`
 	Comment         Comment     `json:"comment"`
